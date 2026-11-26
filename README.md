@@ -1,64 +1,52 @@
 # Detecting Parkinson's Disease from Voice Recordings
 
-ML-2026 project, ESILV · Maxence Périnel, Octave Goudon
+ML project, ESILV 2026 · Maxence Périnel, Octave Goudon
 
-Dataset: [UCI – Parkinson's Disease Classification](https://archive.ics.uci.edu/dataset/470/parkinson+s+disease+classification) (Sakar et al., 2019).
-756 voice recordings from 252 people (188 Parkinson, 64 healthy), 3 recordings per person.
+We use the [UCI Parkinson's Disease Classification](https://archive.ics.uci.edu/dataset/470/parkinson+s+disease+classification) dataset (Sakar et al., 2019): 756 voice recordings from 252 people (188 with Parkinson, 64 healthy), 3 recordings per person. The goal is to predict from the voice if someone has Parkinson.
 
 ## Progress
 
-| Week | Task | Status |
-|---|---|---|
-| 1 | Topic, dataset and project specification | ✅ Done |
-| 2 | Clean dataset, graphical analysis, feature analysis, baseline | ✅ Done |
-| 3 | AutoML, richer models, probability calibration | ⏳ Next |
-| 4 | Final evaluation, report, oral defense | ⏳ Planned |
+- **Week 1:** topic, dataset and project specification. Done.
+- **Week 2:** data cleaning, data analysis and baseline. Done.
+- **Week 3:** AutoML, better models, probability calibration. Next.
+- **Week 4:** final evaluation, report, oral defense. Planned.
 
-## Week 2: data cleaning, visualisation and feature analysis
+## Data analysis
 
 Notebook: [`notebooks/data_cleaning.ipynb`](notebooks/data_cleaning.ipynb)
 
-Each step follows the same method: **test** → **result** → **fix** → **check** (the test is run again).
+The data was already in good shape. What we found and fixed:
 
-| Test | Result | Fix |
-|---|---|---|
-| Column names when reading the file | 2 header rows (`Unnamed: 0`, ...) | read with `header=1` |
-| Missing values, data types | 0 missing, all numeric | nothing to fix |
-| Duplicated rows | 1 duplicate (person 37) | removed |
-| Same label / gender for each person | consistent | nothing to fix |
-| Standard deviation of each column | 35 columns ≈ 1e-20 (rounding noise) | removed |
-| Final `assert` checks | all passed | – |
-| Features that barely change (number of different values) | none (smallest: 103 different values) | nothing to fix |
-| Features that are copies of each other (correlation > 0.99) | 97 columns are near-copies (e.g. `ddaShimmer` = 3 × `apq3Shimmer`) | removed in the reduced dataset |
-| Does this choice depend on the people used? (two halves of the people) | 81 columns removed with both halves, all 97 found in at least one half | repeated on the training people only in `baseline.ipynb` |
+- The file has 2 header rows, so we read it with `header=1`.
+- No missing values and all columns are numeric.
+- 1 duplicated recording (person 37), removed.
+- 35 columns that are only rounding noise (std around 1e-20), removed.
+- 97 columns are near-copies of other columns (correlation > 0.99, for example `ddaShimmer` = 3 × `apq3Shimmer`). They are removed in a second, reduced file.
 
-The dataset was already in good shape. Two files are saved in `data/processed/`:
-- `pd_speech_clean.csv`: 755 recordings × 717 voice features (+ `id`, `class`, `gender`)
-- `pd_speech_reduced.csv`: the same without the 97 near-copies, so 620 voice features
+We save two files in `data/processed/`:
 
-Thresholds 0.95 (241 columns) and 0.90 (364 columns) would remove more. They are tested with a model in `baseline.ipynb` (step 8).
+- `pd_speech_clean.csv`: 755 recordings, 717 voice features.
+- `pd_speech_reduced.csv`: same without the near-copies, 620 voice features.
 
-**What the graphs show (for next week):**
-- **Imbalanced classes**: 75 % Parkinson / 25 % healthy, so we won't use accuracy alone.
-- **No single voice measure separates the classes** (jitter, shimmer, noise ratio overlap), so the model must combine features.
-- **Many redundant features** (e.g. `rapJitter` and `ddpJitter`: correlation 1.0), so we compare the full and the reduced datasets.
-- **The recordings of one person are similar**, so we'll split the data **by person**.
+What the graphs show:
 
-## Week 2: baseline implementation
+- The classes are imbalanced (75% Parkinson, 25% healthy), so accuracy alone is not enough.
+- No single feature separates the two classes, so the model has to combine many of them.
+- The 3 recordings of one person look alike, so we have to split the data by person.
 
-Notebook: [`notebooks/baseline.ipynb`](notebooks/baseline.ipynb) (same method: test → result → fix → check)
+## Baseline
 
-| Question | Result |
-|---|---|
-| Split | by person (201 train / 51 test people); the test set is locked until the final evaluation |
-| Accuracy alone? | No: a model that always says "Parkinson" gets 0.75 accuracy but 0.5 balanced accuracy |
-| Does a split by recording leak? | Yes: AUC 0.809 → 0.896 (logistic regression) when recordings of a person are mixed |
-| Best simple model | Logistic regression: balanced accuracy 0.751 ± 0.068, AUC 0.809 ± 0.061 (tree 0.699, k-NN 0.692) |
-| Probabilities reliable? | No, over-confident (calibration planned for week 3) |
-| One prediction per person (mean of 3 recordings) | better: balanced accuracy 0.754, AUC 0.835, MCC 0.498 |
-| Remove near-copy features? | 717 → 618 / 469 / 354 voice features: 0.754 / 0.744 / 0.738 vs 0.751, no real loss (std ≈ 0.07) |
-| Gender | imbalanced between classes, but removing it changes nothing (0.751 vs 0.753) |
-| Benchmark | Sakar et al. 2019: best 0.86 accuracy / 0.59 MCC (leave-one-subject-out, mRMR top 50); ours 0.81 / 0.50 (not the same protocol) |
+Notebook: [`notebooks/baseline.ipynb`](notebooks/baseline.ipynb)
+
+- **Split by person:** 201 people for training, 51 for testing. The test set is not touched until the final evaluation.
+- **Why not accuracy:** a model that always says "Parkinson" gets 0.75 accuracy, but only 0.5 balanced accuracy.
+- **Why split by person:** if we mix the recordings of a person, the AUC goes from 0.809 to 0.896 (the model recognises the person, not the disease).
+- **Best simple model:** logistic regression, balanced accuracy 0.751 ± 0.068 and AUC 0.809 ± 0.061 (decision tree: 0.699, k-NN: 0.692).
+- **One prediction per person** (mean of the 3 recordings): balanced accuracy 0.754, AUC 0.835, MCC 0.498.
+- **Removing near-copy features** does not change much (0.754 / 0.744 / 0.738 vs 0.751).
+- **Gender** is imbalanced between the classes, but removing it changes nothing (0.751 vs 0.753).
+- **Probabilities** are over-confident, so we will calibrate them in week 3.
+- **Paper benchmark:** Sakar et al. get 0.86 accuracy and 0.59 MCC, we get 0.81 and 0.50. The protocol is not the same, so it is only a rough comparison.
 
 ## Structure
 
@@ -67,19 +55,19 @@ ML-parkinson/
 ├── README.md
 ├── requirements.txt
 ├── data/
-│   ├── raw/pd_speech_features.csv      ← original file
+│   ├── raw/pd_speech_features.csv      original file
 │   └── processed/
-│       ├── pd_speech_clean.csv         ← clean dataset (717 voice features)
-│       ├── pd_speech_reduced.csv       ← without near-copy features (620)
-│       └── split_person_ids.csv        ← people in the train / test sets
+│       ├── pd_speech_clean.csv         clean dataset
+│       ├── pd_speech_reduced.csv       without near-copy features
+│       └── split_person_ids.csv        people in train / test
 ├── notebooks/
-│   ├── data_cleaning.ipynb             ← tests, cleaning, graphs, feature analysis
-│   └── baseline.ipynb                  ← split, metrics, baseline models, calibration, benchmark
-├── report/                             ← empty for now (final report)
+│   ├── data_cleaning.ipynb             cleaning, graphs, feature analysis
+│   └── baseline.ipynb                  split, metrics, baseline models
+├── report/                             final report (empty for now)
 └── ai_governance/
-    ├── CONTRIBUTIONS.md                ← empty for now
-    ├── PROMPT_LOG.md                   ← started
-    └── AI_AUDIT.md                     ← empty for now
+    ├── CONTRIBUTIONS.md
+    ├── PROMPT_LOG.md
+    └── AI_AUDIT.md
 ```
 
 ## How to run

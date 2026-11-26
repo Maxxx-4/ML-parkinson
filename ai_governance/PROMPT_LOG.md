@@ -40,7 +40,7 @@ What the AI produced: `notebooks/baseline.ipynb` (10 steps) and `data/processed/
 
 How we checked it: cross-validation grouped by person, the scaling placed in a pipeline, all numbers in the text taken from the outputs of the code cells, and a full run of the notebook with no error or warning. The AI removed a hyperparameter curve (tuning belongs to week 3) and the notebook was tested on a Windows computer, where the parallel option (`n_jobs=-1`) failed and was removed.
 
-## #7 – Rewriting the explanations in French and English (2026-11-26)
+## #5 – Writing the explanations in French and English (2026-11-26)
 
 Prompt (reformulated by Maxence Périnel, original message in French):
 > Write the markdown cells (French and English) of baseline.ipynb and data_cleaning.ipynb: 2 to 4 sentences per cell, simple. Do not change any code or any output, only quote numbers that are in the outputs of the cells, keep the limitations we already wrote, and do not say "better" when the gap is smaller than the standard deviation.
